@@ -1,18 +1,26 @@
 # WeeChat Growl Script
 
-This is a [Growl](http://growl.info) script for [WeeChat](http://weechat.org) Internet Relay Chat client.
+This is a notification script for [WeeChat](http://weechat.org) Internet Relay Chat client.
 
-For an [Irssi](http://irssi.org/) Growl script, see [Irssi Growl](https://github.com/sorin-ionescu/irssi-growl).
+Originally developed for Growl, but adapted for Libnotify, see [weechat-growl](https://github.com/sorin-ionescu/weechat-growl).
+
+## Features
+
+Notifications for:
+
+- Private message
+
+- Inivtes, topic changes
+
+- Extensive DCC support: chat, file receiving and sending
+
+- Notifications can be made sticky (always or only on away)
 
 ## Installation
 
-Make sure that the Growl Network Transport Protocol ([GNTP](https://github.com/kfdm/gntp)) Python bindings are installed.
+Make sure that Libnotify is and Python bindings are installed. Use your favorite package manager
 
-    pip install gntp
-
-Move *growl.py* to *~/.weechat/python/autoload/growl.py* and an *icon.png* to *~/.weechat/icon.png*.
-
-The network settings **DO NOT** need to be populated for local Growl notifications.
+Move *growl.py* to *~/.weechat/python/autoload/growl.py*.
 
 ## Settings
 
@@ -71,20 +79,4 @@ Set sticky notifications. (on/off)
 `sticky_away`
 
 Set sticky notifications only when away. (on/off)
-
-### Network Settings
-
-`hostname`
-
-Set the Growl server host.
-
-`password`
-
-Set the Growl server password.
-
-### Icon Settings
-
-`icon`
-
-Set the Growl notification icon path relative to _~/.weechat_.
 

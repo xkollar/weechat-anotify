@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 #
+# anotify.py
+# Copyright (c) 2012 magnific0
+#
+# based on:
 # growl.py
 # Copyright (c) 2011 Sorin Ionescu <sorin.ionescu@gmail.com>
 #
@@ -22,21 +26,15 @@
 # SOFTWARE.
 
 
-SCRIPT_NAME = 'growl'
-SCRIPT_AUTHOR = 'Sorin Ionescu <sorin.ionescu@gmail.com>'
-SCRIPT_VERSION = '1.0.5'
+SCRIPT_NAME = 'anotify'
+SCRIPT_AUTHOR = 'magnific0'
+SCRIPT_VERSION = '1.0.0'
 SCRIPT_LICENSE = 'MIT'
-SCRIPT_DESC = 'Sends Growl notifications upon events.'
+SCRIPT_DESC = 'Sends libnotify notifications upon events.'
 
 
 # Changelog
-# 2011-12-30: v1.0.5 Fixed a NoneType error.
-# 2011-10-11: v1.0.4 Handle import errors better.
-# 2011-10-10: v1.0.3 Handle Growl exceptions.
-# 2011-10-04: v1.0.2 Growl 1.3 requires GNTP.
-# 2011-09-25: v1.0.1 Always show highlighted messages if set on.
-# 2011-03-27: v1.0.0 Initial release.
-
+# 2012-09-20: v1.0.0 Forked from original and adapted for libnotify.
 
 # -----------------------------------------------------------------------------
 # Settings
@@ -55,9 +53,7 @@ SETTINGS = {
     'show_upgrade_ended': 'on',
     'sticky': 'off',
     'sticky_away': 'on',
-    'hostname': '',
-    'password': '',
-    'icon': 'icon.png',
+    'icon': '/usr/share/pixmaps/weechat.xpm',
 }
 
 
@@ -68,17 +64,15 @@ try:
     import re
     import os
     import weechat
-    from gntp.notifier import GrowlNotifier
+    import pynotify
     IMPORT_OK = True
 except ImportError as error:
     IMPORT_OK = False
     if str(error).find('weechat') != -1:
         print('This script must be run under WeeChat.')
         print('Get WeeChat at http://www.weechat.org.')
-    elif str(error).find('notifier') != -1:
-        weechat.prnt('', 'growl: GNTP bindings are not installed')
     else:
-        weechat.prnt('', 'growl: {0}'.format(error))
+        weechat.prnt('', 'anotify: {0}'.format(error))
 
 # -----------------------------------------------------------------------------
 # Globals
@@ -89,11 +83,13 @@ TAGGED_MESSAGES = {
     'notice message': set(['irc_notice', 'notify_private']),
     'invite message': set(['irc_invite', 'notify_highlight']),
     'channel topic': set(['irc_topic', ]),
-    'away status': set(['away_info', ]),
+    #'away status': set(['away_info', ]),
 }
 
 
 UNTAGGED_MESSAGES = {
+    'away status':
+        re.compile(r'^You ((\w+).){2,3}marked as being away', re.UNICODE),
     'dcc chat request':
         re.compile(r'^xfer: incoming chat request from (\w+)', re.UNICODE),
     'dcc chat closed':
@@ -133,7 +129,6 @@ DISPATCH_TABLE = {
 
 
 STATE = {
-    'growl': None,
     'icon': None,
     'is_away': False
 }
@@ -145,7 +140,7 @@ STATE = {
 def cb_irc_server_connected(data, signal, signal_data):
     '''Notify when connected to IRC server.'''
     if weechat.config_get_plugin('show_server') == 'on':
-        growl_notify(
+        a_notify(
             'Server',
             'Server Connected',
             'Connected to network {0}.'.format(signal_data))
@@ -155,7 +150,7 @@ def cb_irc_server_connected(data, signal, signal_data):
 def cb_irc_server_disconnected(data, signal, signal_data):
     '''Notify when disconnected to IRC server.'''
     if weechat.config_get_plugin('show_server') == 'on':
-        growl_notify(
+        a_notify(
             'Server',
             'Server Disconnected',
             'Disconnected from network {0}.'.format(signal_data))
@@ -165,7 +160,7 @@ def cb_irc_server_disconnected(data, signal, signal_data):
 def cb_notify_upgrade_ended(data, signal, signal_data):
     '''Notify on end of WeeChat upgrade.'''
     if weechat.config_get_plugin('show_upgrade_ended') == 'on':
-        growl_notify(
+        a_notify(
             'WeeChat',
             'WeeChat Upgraded',
             'WeeChat has been upgraded.')
@@ -175,11 +170,11 @@ def cb_notify_upgrade_ended(data, signal, signal_data):
 def notify_highlighted_message(prefix, message):
     '''Notify on highlighted message.'''
     if weechat.config_get_plugin("show_highlighted_message") == "on":
-        growl_notify(
+        a_notify(
             'Highlight',
             'Highlighted Message',
             "{0}: {1}".format(prefix, message),
-            priority=2)
+            priority=pynotify.URGENCY_CRITICAL)
 
 
 def notify_public_message_or_action(prefix, message, highlighted):
@@ -195,7 +190,7 @@ def notify_public_message_or_action(prefix, message, highlighted):
         if highlighted:
             notify_highlighted_message(prefix, message)
         elif weechat.config_get_plugin("show_public_message") == "on":
-            growl_notify(
+            a_notify(
                 'Public',
                 'Public Message',
                 '{0}: {1}'.format(prefix, message))
@@ -219,7 +214,7 @@ def notify_private_message_or_action(prefix, message, highlighted):
             if highlighted:
                 notify_highlighted_message(prefix, message)
             elif weechat.config_get_plugin("show_private_message") == "on":
-                growl_notify(
+                a_notify(
                     'Private',
                     'Private Message',
                     '{0}: {1}'.format(prefix, message))
@@ -230,11 +225,11 @@ def notify_public_action_message(prefix, message, highlighted):
     if highlighted:
         notify_highlighted_message(prefix, message)
     elif weechat.config_get_plugin("show_public_action_message") == "on":
-        growl_notify(
+        a_notify(
             'Action',
             'Public Action Message',
             '{0}: {1}'.format(prefix, message),
-            priority=1)
+            priority=pynotify.URGENCY_NORMAL)
 
 
 def notify_private_action_message(prefix, message, highlighted):
@@ -242,11 +237,11 @@ def notify_private_action_message(prefix, message, highlighted):
     if highlighted:
         notify_highlighted_message(prefix, message)
     elif weechat.config_get_plugin("show_private_action_message") == "on":
-        growl_notify(
+        a_notify(
             'Action',
             'Private Action Message',
             '{0}: {1}'.format(prefix, message),
-            priority=1)
+            priority=pynotify.URGENCY_NORMAL)
 
 
 def notify_notice_message(prefix, message, highlighted):
@@ -259,7 +254,7 @@ def notify_notice_message(prefix, message, highlighted):
         if highlighted:
             notify_highlighted_message(prefix, message)
         elif weechat.config_get_plugin("show_notice_message") == "on":
-            growl_notify(
+            a_notify(
                 'Notice',
                 'Notice Message',
                 '{0}: {1}'.format(prefix, message))
@@ -274,7 +269,7 @@ def notify_invite_message(prefix, message, highlighted):
         if match:
             channel = match.group(1)
             nick = match.group(2)
-            growl_notify(
+            a_notify(
                 'Invite',
                 'Channel Invitation',
                 '{0} has invited you to join {1}.'.format(nick, channel))
@@ -291,7 +286,7 @@ def notify_channel_topic(prefix, message, highlighted):
         if match:
             channel = match.group(1)
             topic = match.group(2) or ''
-            growl_notify(
+            a_notify(
                 'Channel',
                 'Channel Topic',
                 "{0}: {1}".format(channel, topic))
@@ -301,7 +296,7 @@ def notify_dcc_chat_request(match):
     '''Notify on DCC chat request.'''
     if weechat.config_get_plugin("show_dcc") == "on":
         nick = match.group(1)
-        growl_notify(
+        a_notify(
             'DCC',
             'Direct Chat Request',
             '{0} wants to chat directly.'.format(nick))
@@ -311,7 +306,7 @@ def notify_dcc_chat_closed(match):
     '''Notify on DCC chat termination.'''
     if weechat.config_get_plugin("show_dcc") == "on":
         nick = match.group(1)
-        growl_notify(
+        a_notify(
             'DCC',
             'Direct Chat Ended',
             'Direct chat with {0} has ended.'.format(nick))
@@ -322,7 +317,7 @@ def notify_dcc_get_request(match):
     if weechat.config_get_plugin("show_dcc") == "on":
         nick = match.group(1)
         file_name = match.group(2)
-        growl_notify(
+        a_notify(
             'DCC',
             'File Transfer Request',
             '{0} wants to send you {1}.'.format(nick, file_name))
@@ -332,43 +327,39 @@ def notify_dcc_get_completed(match):
     'Notify on DCC get completion.'
     if weechat.config_get_plugin("show_dcc") == "on":
         file_name = match.group(1)
-        growl_notify('DCC', 'Download Complete', file_name)
+        a_notify('DCC', 'Download Complete', file_name)
 
 
 def notify_dcc_get_failed(match):
     'Notify on DCC get failure.'
     if weechat.config_get_plugin("show_dcc") == "on":
         file_name = match.group(1)
-        growl_notify('DCC', 'Download Failed', file_name)
+        a_notify('DCC', 'Download Failed', file_name)
 
 
 def notify_dcc_send_completed(match):
     'Notify on DCC send completion.'
     if weechat.config_get_plugin("show_dcc") == "on":
         file_name = match.group(1)
-        growl_notify('DCC', 'Upload Complete', file_name)
+        a_notify('DCC', 'Upload Complete', file_name)
 
 
 def notify_dcc_send_failed(match):
     'Notify on DCC send failure.'
     if weechat.config_get_plugin("show_dcc") == "on":
         file_name = match.group(1)
-        growl_notify('DCC', 'Upload Failed', file_name)
+        a_notify('DCC', 'Upload Failed', file_name)
 
 
 # -----------------------------------------------------------------------------
 # Utility
 # -----------------------------------------------------------------------------
-def set_away_status(prefix, message, highlighted):
-    '''Sets away status for use by sticky notifications.'''
-    regex = re.compile(r'^\[\w+ \b(away|back)\b:', re.UNICODE)
-    match = regex.match(message)
-    if match:
-        status = match.group(1)
-        if status == 'away':
-            STATE['is_away'] = True
-        if status == 'back':
-            STATE['is_away'] = False
+def set_away_status(match):
+    status = match.group(1)
+    if status == 'been ':
+        STATE['is_away'] = True
+    if status == 'longer ':
+        STATE['is_away'] = False
 
 
 def cb_process_message(
@@ -410,45 +401,37 @@ def cb_process_message(
     return weechat.WEECHAT_RC_OK
 
 
-def growl_notify(notification, title, description, priority=None):
-    '''Returns whether Growl notifications should be sticky.'''
-    growl = STATE['growl']
+def a_notify(notification, title, description, priority=pynotify.URGENCY_LOW):
+    '''Returns whether notifications should be sticky.'''
     is_away = STATE['is_away']
     icon = STATE['icon']
-    is_sticky = False
+    time_out = 5000
     if weechat.config_get_plugin('sticky') == 'on':
-        is_sticky = True
+        time_out = 0
     if weechat.config_get_plugin('sticky_away') == 'on' and is_away:
-        is_sticky = True
+        time_out = 0
     try:
-        growl.notify(
-            noteType=notification,
-            title=title,
-            description=description,
-            icon=icon,
-            sticky=is_sticky,
-            priority=priority)
+        pynotify.init("wee-notifier")
+        wn = pynotify.Notification(title, description, icon)
+        wn.set_urgency(priority)
+        wn.set_timeout(time_out)
+        wn.show()
     except Exception as error:
-        weechat.prnt('', 'growl: {0}'.format(error))
+        weechat.prnt('', 'anotify: {0}'.format(error))
 
 
 # -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
 def main():
-    '''Sets up WeeChat Growl notifications.'''
+    '''Sets up WeeChat notifications.'''
     # Initialize options.
     for option, value in SETTINGS.items():
         if not weechat.config_is_set_plugin(option):
             weechat.config_set_plugin(option, value)
-    # Initialize Growl.
+    # Initialize.
     name = "WeeChat"
-    hostname = weechat.config_get_plugin('hostname')
-    password = weechat.config_get_plugin('password')
-    icon = 'file://{0}'.format(
-        os.path.join(
-            weechat.info_get("weechat_dir", ""),
-            weechat.config_get_plugin('icon')))
+    icon = "/usr/share/pixmaps/weechat.xpm"
     notifications = [
         'Public',
         'Private',
@@ -461,21 +444,6 @@ def main():
         'DCC',
         'WeeChat'
     ]
-    if len(hostname) == 0:
-        hostname = ''
-    if len(password) == 0:
-        password = ''
-    growl = GrowlNotifier(
-        applicationName=name,
-        hostname=hostname,
-        password=password,
-        notifications=notifications,
-        applicationIcon=icon)
-    try:
-        growl.register()
-    except Exception as error:
-        weechat.prnt('', 'growl: {0}'.format(error))
-    STATE['growl'] = growl
     STATE['icon'] = icon
     # Register hooks.
     weechat.hook_signal(
