@@ -17,7 +17,7 @@ Notifications for:
 
 Make sure that Libnotify is and Python bindings are installed. Use your favorite package manager
 
-Move *anotify.py* to *~/.weechat/python/autoload/anotify.py*.
+Move `anotify.py` to `~/.weechat/python/autoload/anotify.py`.
 
 ## Settings
 
