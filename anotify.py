@@ -129,7 +129,6 @@ DISPATCH_TABLE = {
 
 
 STATE = {
-    'icon': None,
     'is_away': False
 }
 
@@ -404,7 +403,7 @@ def cb_process_message(
 def a_notify(notification, title, description, priority=pynotify.URGENCY_LOW):
     '''Returns whether notifications should be sticky.'''
     is_away = STATE['is_away']
-    icon = STATE['icon']
+    icon = weechat.config_get_plugin('icon')
     time_out = 5000
     if weechat.config_get_plugin('sticky') == 'on':
         time_out = 0
@@ -431,7 +430,6 @@ def main():
             weechat.config_set_plugin(option, value)
     # Initialize.
     name = "WeeChat"
-    icon = "/usr/share/pixmaps/weechat.xpm"
     notifications = [
         'Public',
         'Private',
@@ -444,7 +442,6 @@ def main():
         'DCC',
         'WeeChat'
     ]
-    STATE['icon'] = icon
     # Register hooks.
     weechat.hook_signal(
         'irc_server_connected',
