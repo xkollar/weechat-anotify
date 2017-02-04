@@ -39,7 +39,7 @@ SCRIPT_DESC = 'Sends libnotify notifications upon events.'
 # -----------------------------------------------------------------------------
 # Settings
 # -----------------------------------------------------------------------------
-SETTINGS = {
+DEFAULT_SETTINGS = {
     'show_public_message': 'off',
     'show_private_message': 'on',
     'show_public_action_message': 'off',
@@ -426,7 +426,7 @@ def a_notify(notification, title, description, priority=pynotify.URGENCY_LOW):
 def main():
     '''Sets up WeeChat notifications.'''
     # Initialize options.
-    for option, value in SETTINGS.items():
+    for option, value in DEFAULT_SETTINGS.items():
         if not weechat.config_is_set_plugin(option):
             weechat.config_set_plugin(option, value)
     # Initialize.
