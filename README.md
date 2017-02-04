@@ -40,3 +40,6 @@ Move `anotify.py` to `~/.weechat/python/autoload/anotify.py`.
 - `sticky`: Set sticky notifications. (on/off*)
 - `sticky_away`: Set sticky notifications only when away. (on*/off)
 
+### Miscellaneous Settings
+
+- `icon`: Set icon to be used in notification bubble. (path or theme string, default=`/usr/share/pixmaps/weechat.xpm`)
